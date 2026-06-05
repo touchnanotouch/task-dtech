@@ -21,9 +21,8 @@ def create_auth_bp(auth_service):
 
     @bp.get("/me")
     async def me(request):
-        token = request.headers.get("Authorization", "").removeprefix("Bearer ")
-
-        user = await auth_service.get_current_user(token)
+        payload = getattr(request.ctx, "payload", {})
+        user = await auth_service.get_user_by_id(payload["user_id"])
 
         return json(
             UserOut(

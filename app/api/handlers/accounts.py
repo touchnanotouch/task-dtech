@@ -7,7 +7,8 @@ def create_accounts_bp(account_service):
 
     @bp.get("/")
     async def list_accounts(request):
-        user_id = request.ctx.payload["user_id"]
+        payload = getattr(request.ctx, "payload", {})
+        user_id = payload["user_id"]
 
         accounts = await account_service.get_my_accounts(user_id)
 

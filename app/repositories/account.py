@@ -46,6 +46,8 @@ class AccountRepo:
 
         await session.flush()
 
+    async def expire(self, session: AsyncSession, account_id: int) -> None:
         account = await session.get(Account, account_id)
+
         if account:
             session.expire(account)

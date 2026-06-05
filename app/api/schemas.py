@@ -9,11 +9,6 @@ class LoginRequest(BaseModel):
     password: str
 
 
-class LoginResponse(BaseModel):
-    access_token: str
-    token_type: str = "Bearer"
-
-
 class UserOut(BaseModel):
     id: int
     email: str
@@ -47,25 +42,9 @@ class PaymentOut(BaseModel):
     created_at: datetime
 
 
-class PaginationMeta(BaseModel):
-    page: int
-    per_page: int
-    total: int
-
-
-class PaginatedResponse(BaseModel):
-    data: list
-    pagination: PaginationMeta
-
-
 class WebhookPayload(BaseModel):
     transaction_id: str
     account_id: int
     user_id: int
     amount: Decimal
     signature: str
-
-
-class WebhookResponse(BaseModel):
-    status: str
-    payment_id: int

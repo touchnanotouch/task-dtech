@@ -35,8 +35,12 @@ class AuthService:
         ):
             raise InvalidToken()
 
+        return await self.get_user_by_id(payload["user_id"])
+
+    async def get_user_by_id(self, user_id: int) -> User:
         async with get_session() as session:
-            user = await self._user_repo.get_by_id(session, payload["user_id"])
+            user = await self._user_repo.get_by_id(session, user_id)
+
             if not user:
                 raise InvalidToken()
 

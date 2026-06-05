@@ -107,7 +107,7 @@ Signature: SHA256 of sorted key-value pairs + webhook secret.
 | `DEBUG` | `true` | Enable debug logging and SQL echo |
 | `DATABASE_URL` | `postgresql+asyncpg://postgres:postgres@localhost:5432/payment_api` | Async DB connection |
 | `JWT_SECRET` | `dev-jwt-secret-key-change-in-production!` | JWT signing key |
-| `WEBHOOK_SECRET` | `dev-webhook-secret` | Webhook HMAC key |
+| `WEBHOOK_SECRET` | `dev-webhook-secret-key-change-in-production!` | Webhook HMAC key |
 | `JWT_EXPIRATION_HOURS` | `24` | Token lifetime (hours) |
 
 Copy `.env.example` to `.env` for local development.

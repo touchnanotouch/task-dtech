@@ -9,7 +9,8 @@ def create_payments_bp(payment_service):
 
     @bp.get("/")
     async def list_payments(request):
-        user_id = request.ctx.payload["user_id"]
+        payload = getattr(request.ctx, "payload", {})
+        user_id = payload["user_id"]
 
         page, per_page = parse_pagination(request)
 

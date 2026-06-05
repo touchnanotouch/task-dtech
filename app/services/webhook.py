@@ -38,52 +38,77 @@ class WebhookService:
                 session, transaction_id
             )
             if existing:
-                return {
-                    "status": "already_processed",
-                    "payment_id": existing.id,
-                }
+                return {"status": "already_processed", "payment_id": existing.id}
+
+            account = await self._find_or_create_account(session, user_id, account_id)
+
+            result = await self._create_payment_and_credit(
+                session,
+                account,
+                transaction_id,
+                user_id,
+                amount,
+            )
+
+            return result
+
+    async def _find_or_create_account(
+        self,
+        session,
+        user_id: int,
+        account_id: int,
+    ):
+        account = await self._account_repo.get_by_user_and_id(
+            session, user_id, account_id
+        )
+        if account:
+            return account
+
+        try:
+            account = await self._account_repo.create(
+                session, account_id=account_id, user_id=user_id
+            )
+        except IntegrityError:
+            await session.rollback()
 
             account = await self._account_repo.get_by_user_and_id(
                 session, user_id, account_id
             )
             if not account:
-                try:
-                    account = await self._account_repo.create(
-                        session, account_id=account_id, user_id=user_id
-                    )
-                except IntegrityError:
-                    await session.rollback()
-                    account = await self._account_repo.get_by_user_and_id(
-                        session, user_id, account_id
-                    )
-                    if not account:
-                        raise
-
-            try:
-                payment = await self._payment_repo.create(
-                    session,
-                    transaction_id=transaction_id,
-                    account_id=account.id,
-                    user_id=user_id,
-                    amount=amount,
-                )
-
-                await self._account_repo.increase_balance(session, account.id, amount)
-
-                await session.commit()
-            except IntegrityError:
-                await session.rollback()
-                existing = await self._payment_repo.get_by_transaction_id(
-                    session, transaction_id
-                )
-                if existing:
-                    return {
-                        "status": "already_processed",
-                        "payment_id": existing.id,
-                    }
                 raise
 
-            return {
-                "status": "success",
-                "payment_id": payment.id,
-            }
+        return account
+
+    async def _create_payment_and_credit(
+        self,
+        session,
+        account,
+        transaction_id: str,
+        user_id: int,
+        amount: Decimal,
+    ) -> dict:
+        try:
+            payment = await self._payment_repo.create(
+                session,
+                transaction_id=transaction_id,
+                account_id=account.id,
+                user_id=user_id,
+                amount=amount,
+            )
+
+            await self._account_repo.increase_balance(session, account.id, amount)
+            await self._account_repo.expire(session, account.id)
+
+            await session.commit()
+        except IntegrityError:
+            await session.rollback()
+
+            existing = await self._payment_repo.get_by_transaction_id(
+                session, transaction_id
+            )
+            if existing:
+                return {"status": "already_processed", "payment_id": existing.id}
+
+            raise
+
+        return {"status": "success", "payment_id": payment.id}
