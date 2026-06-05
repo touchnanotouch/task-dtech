@@ -3,6 +3,7 @@ from sanic.exceptions import SanicException
 from sanic.response import HTTPResponse, json
 
 from app.api import CreateUserRequest, UpdateUserRequest, UserOut
+from app.api.handlers import parse_pagination
 from app.core import Forbidden
 
 
@@ -10,7 +11,8 @@ def create_users_bp(admin_service):
     bp = Blueprint("users", url_prefix="/api/v1/admin/users")
 
     def _require_admin(request):
-        if not request.ctx.payload.get("is_admin"):
+        payload = getattr(request.ctx, "payload", {})
+        if not payload.get("is_admin"):
             raise Forbidden()
 
     def _require_body(request):
@@ -21,8 +23,7 @@ def create_users_bp(admin_service):
     async def list_users(request):
         _require_admin(request)
 
-        page = int(request.args.get("page", 1))
-        per_page = int(request.args.get("per_page", 10))
+        page, per_page = parse_pagination(request)
 
         result = await admin_service.list_users(page=page, per_page=per_page)
 

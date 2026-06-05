@@ -1,9 +1,7 @@
-import hashlib
+import pytest
 
 from decimal import Decimal
 from unittest.mock import MagicMock
-
-import pytest
 
 from sqlalchemy.exc import IntegrityError
 
@@ -11,17 +9,7 @@ from app.core import InvalidSignature
 from app.repositories import AccountRepo, PaymentRepo
 from app.services import WebhookService
 
-
-def _sig(tx_id, acc_id, user_id, amount, secret):
-    keys = sorted(["account_id", "amount", "transaction_id", "user_id"])
-    values = {
-        "account_id": str(acc_id),
-        "amount": str(amount),
-        "transaction_id": tx_id,
-        "user_id": str(user_id),
-    }
-    raw = "".join(values[k] for k in keys) + secret
-    return hashlib.sha256(raw.encode()).hexdigest()
+from tests.helpers import webhook_signature
 
 
 SECRET = "test-webhook-secret"
@@ -46,10 +34,13 @@ def svc(account_repo, payment_repo):
 
 class TestProcessPayment:
     async def test_success(self, mock_get_session, svc, account_repo, payment_repo):
-        sig = _sig(TX_ID, 1, 1, AMOUNT, SECRET)
+        sig = webhook_signature(TX_ID, 1, 1, AMOUNT, SECRET)
+
         account_repo.get_by_user_and_id.return_value = MagicMock(id=1)
         payment_repo.get_by_transaction_id.return_value = None
+
         payment = MagicMock(id=42)
+
         payment_repo.create.return_value = payment
 
         result = await svc.process_payment(
@@ -61,7 +52,10 @@ class TestProcessPayment:
         )
 
         assert result == {"status": "success", "payment_id": 42}
-        account_repo.increase_balance.assert_called_once_with(mock_get_session, 1, AMOUNT)
+
+        account_repo.increase_balance.assert_called_once_with(
+            mock_get_session, 1, AMOUNT
+        )
         mock_get_session.commit.assert_called_once()
 
     async def test_invalid_signature(self, mock_get_session, svc):
@@ -74,8 +68,11 @@ class TestProcessPayment:
                 signature="invalid",
             )
 
-    async def test_idempotent_duplicate_before_insert(self, svc, mock_get_session, account_repo, payment_repo):
-        sig = _sig("tx-dup", 1, 1, AMOUNT, SECRET)
+    async def test_idempotent_duplicate_before_insert(
+        self, svc, mock_get_session, account_repo, payment_repo
+    ):
+        sig = webhook_signature("tx-dup", 1, 1, AMOUNT, SECRET)
+
         account_repo.get_by_user_and_id.return_value = MagicMock(id=1)
         payment_repo.get_by_transaction_id.return_value = MagicMock(id=5)
 
@@ -89,8 +86,11 @@ class TestProcessPayment:
 
         assert result == {"status": "already_processed", "payment_id": 5}
 
-    async def test_idempotent_duplicate_transaction_race(self, svc, mock_get_session, account_repo, payment_repo):
-        sig = _sig("tx-race", 1, 1, AMOUNT, SECRET)
+    async def test_idempotent_duplicate_transaction_race(
+        self, svc, mock_get_session, account_repo, payment_repo
+    ):
+        sig = webhook_signature("tx-race", 1, 1, AMOUNT, SECRET)
+
         account_repo.get_by_user_and_id.return_value = MagicMock(id=1)
         payment_repo.get_by_transaction_id.side_effect = [None, MagicMock(id=7)]
         payment_repo.create.side_effect = IntegrityError("stmt", {}, Exception())
@@ -104,10 +104,14 @@ class TestProcessPayment:
         )
 
         assert result == {"status": "already_processed", "payment_id": 7}
+
         mock_get_session.rollback.assert_called_once()
 
-    async def test_creates_account_when_not_found(self, mock_get_session, svc, account_repo, payment_repo):
-        sig = _sig(TX_ID, 99, 1, AMOUNT, SECRET)
+    async def test_creates_account_when_not_found(
+        self, mock_get_session, svc, account_repo, payment_repo
+    ):
+        sig = webhook_signature(TX_ID, 99, 1, AMOUNT, SECRET)
+
         account_repo.get_by_user_and_id.side_effect = [None, MagicMock(id=99)]
         account_repo.create.return_value = MagicMock(id=99)
         payment_repo.get_by_transaction_id.return_value = None
@@ -122,10 +126,16 @@ class TestProcessPayment:
         )
 
         assert result["status"] == "success"
-        account_repo.create.assert_called_once_with(mock_get_session, account_id=99, user_id=1)
 
-    async def test_race_condition_on_account_create(self, mock_get_session, svc, account_repo, payment_repo):
-        sig = _sig("tx-acc-race", 99, 1, AMOUNT, SECRET)
+        account_repo.create.assert_called_once_with(
+            mock_get_session, account_id=99, user_id=1
+        )
+
+    async def test_race_condition_on_account_create(
+        self, mock_get_session, svc, account_repo, payment_repo
+    ):
+        sig = webhook_signature("tx-acc-race", 99, 1, AMOUNT, SECRET)
+
         account_repo.get_by_user_and_id.side_effect = [None, MagicMock(id=99)]
         account_repo.create.side_effect = IntegrityError("stmt", {}, Exception())
         payment_repo.get_by_transaction_id.return_value = None
@@ -140,10 +150,14 @@ class TestProcessPayment:
         )
 
         assert result["status"] == "success"
+
         mock_get_session.rollback.assert_called_once()
 
-    async def test_account_create_race_and_still_missing(self, mock_get_session, svc, account_repo, payment_repo):
-        sig = _sig("tx-miss", 99, 1, AMOUNT, SECRET)
+    async def test_account_create_race_and_still_missing(
+        self, mock_get_session, svc, account_repo, payment_repo
+    ):
+        sig = webhook_signature("tx-miss", 99, 1, AMOUNT, SECRET)
+
         payment_repo.get_by_transaction_id.return_value = None
         account_repo.get_by_user_and_id.side_effect = [None, None]
         account_repo.create.side_effect = IntegrityError("stmt", {}, Exception())

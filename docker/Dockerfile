@@ -1,11 +1,15 @@
+# Stage 1
+
 FROM python:3.13-slim AS builder
 
 WORKDIR /build
 
 COPY pyproject.toml .
+
 RUN mkdir -p app && touch app/__init__.py && \
     pip install --no-cache-dir .
 
+# Stage 2
 
 FROM python:3.13-slim
 
@@ -15,7 +19,8 @@ COPY --from=builder /usr/local/lib/python3.13/site-packages /usr/local/lib/pytho
 COPY --from=builder /usr/local/bin /usr/local/bin
 
 COPY . .
-RUN pip install --no-cache-dir .
+
+RUN pip install --no-cache-dir --no-deps .
 
 EXPOSE 8000
 

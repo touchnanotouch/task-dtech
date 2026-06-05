@@ -1,18 +1,15 @@
 import os
 
-os.environ.setdefault("WEBHOOK_SECRET", "dev-webhook-secret")
-os.environ.setdefault("JWT_SECRET", "dev-jwt-secret")
-
-import hashlib
-
-from decimal import Decimal
-
 import psycopg2
 import pytest
 
-from app.core import create_app, Settings
-from app.core.database import get_session
+from decimal import Decimal
 
+from app.core import create_app
+
+
+os.environ.setdefault("WEBHOOK_SECRET", "dev-webhook-secret")
+os.environ.setdefault("JWT_SECRET", "dev-jwt-secret-key-change-in-production!")
 
 TEST_DB_NAME = "payment_api_test"
 
@@ -26,12 +23,13 @@ def _create_test_db():
         dbname="postgres",
     )
     conn.autocommit = True
+
     cur = conn.cursor()
-    cur.execute(
-        "SELECT 1 FROM pg_database WHERE datname = %s", (TEST_DB_NAME,)
-    )
+    cur.execute("SELECT 1 FROM pg_database WHERE datname = %s", (TEST_DB_NAME,))
+
     if not cur.fetchone():
         cur.execute(f'CREATE DATABASE "{TEST_DB_NAME}"')
+
     cur.close()
     conn.close()
 
@@ -40,10 +38,12 @@ def _run_migrations():
     os.environ["DATABASE_URL"] = (
         f"postgresql+asyncpg://postgres:postgres@localhost:5432/{TEST_DB_NAME}"
     )
+
     from alembic.config import Config
     from alembic import command
 
     cfg = Config("alembic.ini")
+
     command.upgrade(cfg, "head")
 
 
@@ -56,54 +56,22 @@ def _migrate_and_seed():
         dbname=TEST_DB_NAME,
     )
     conn.autocommit = True
+
+    _run_migrations()
+
     cur = conn.cursor()
+    cur.execute("SELECT COUNT(*) FROM users")
+    count = cur.fetchone()[0]
 
-    cur.execute(
-        "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'users')"
-    )
-    has_table = cur.fetchone()[0]
-
-    if not has_table:
-        _run_migrations()
-    else:
-        cur.execute("SELECT COUNT(*) FROM users")
-        count = cur.fetchone()[0]
-        if count == 0:
-            _run_migrations()
+    if count == 0:
+        _seed_data(cur)
 
     cur.close()
     conn.close()
 
 
-def _truncate_tables():
-    conn = psycopg2.connect(
-        host="localhost",
-        port=5432,
-        user="postgres",
-        password="postgres",
-        dbname=TEST_DB_NAME,
-    )
-    conn.autocommit = True
-    cur = conn.cursor()
-    cur.execute(
-        "TRUNCATE TABLE payments, accounts, users RESTART IDENTITY CASCADE"
-    )
-    cur.close()
-    conn.close()
-
-
-def _seed_data():
+def _seed_data(cur):
     import bcrypt as _bcrypt
-
-    conn = psycopg2.connect(
-        host="localhost",
-        port=5432,
-        user="postgres",
-        password="postgres",
-        dbname=TEST_DB_NAME,
-    )
-    conn.autocommit = True
-    cur = conn.cursor()
 
     user_pw = _bcrypt.hashpw(b"user123", _bcrypt.gensalt()).decode()
     admin_pw = _bcrypt.hashpw(b"admin123", _bcrypt.gensalt()).decode()
@@ -127,9 +95,6 @@ def _seed_data():
         (user_id, Decimal("1000.00")),
     )
 
-    cur.close()
-    conn.close()
-
     return user_id, admin_id
 
 
@@ -147,6 +112,7 @@ def app():
     yield application
 
     import asyncio
+
     try:
         asyncio.run(application.shutdown())
     except AttributeError:
@@ -160,17 +126,29 @@ def test_client(app):
 
 @pytest.fixture
 def seed():
-    _truncate_tables()
-    return _seed_data()
+    conn = psycopg2.connect(
+        host="localhost",
+        port=5432,
+        user="postgres",
+        password="postgres",
+        dbname=TEST_DB_NAME,
+    )
+    conn.autocommit = True
+
+    cur = conn.cursor()
+    cur.execute("TRUNCATE TABLE payments, accounts, users RESTART IDENTITY CASCADE")
+    _seed_data(cur)
+    cur.close()
+    conn.close()
 
 
 @pytest.fixture
 def user_token(test_client, seed):
-    user_id, _ = seed
     _, resp = test_client.post(
         "/api/v1/auth/login",
         json={"email": "user@test.com", "password": "user123"},
     )
+
     return resp.json["access_token"]
 
 
@@ -180,18 +158,8 @@ def admin_token(test_client, seed):
         "/api/v1/auth/login",
         json={"email": "admin@test.com", "password": "admin123"},
     )
+
     return resp.json["access_token"]
 
 
-def webhook_signature(transaction_id, account_id, user_id, amount, secret=None):
-    if secret is None:
-        secret = os.environ.get("WEBHOOK_SECRET", "dev-webhook-secret")
-    keys = sorted(["account_id", "amount", "transaction_id", "user_id"])
-    values = {
-        "account_id": str(account_id),
-        "amount": str(amount),
-        "transaction_id": transaction_id,
-        "user_id": str(user_id),
-    }
-    raw = "".join(values[k] for k in keys) + secret
-    return hashlib.sha256(raw.encode()).hexdigest()
+

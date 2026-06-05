@@ -12,7 +12,7 @@ class Settings(BaseSettings):
         "postgresql+asyncpg://postgres:postgres@localhost:5432/payment_api"
     )
 
-    jwt_secret: str = "dev-jwt-secret"
-    webhook_secret: str = "dev-webhook-secret"
+    jwt_secret: str = "dev-jwt-secret-key-change-in-production!"
+    webhook_secret: str = "dev-webhook-secret-key-change-in-production!"
 
     jwt_expiration_hours: int = 24

@@ -10,8 +10,10 @@ from app.security import JWTProvider, PasswordProvider
 @pytest.fixture
 def mock_session():
     session = AsyncMock()
+
     session.__aenter__.return_value = session
     session.__aexit__.return_value = None
+
     return session
 
 
@@ -20,8 +22,12 @@ def mock_get_session(mock_session):
     with patch("app.services.auth.get_session", return_value=mock_session):
         with patch("app.services.admin.get_session", return_value=mock_session):
             with patch("app.services.webhook.get_session", return_value=mock_session):
-                with patch("app.services.account.get_session", return_value=mock_session):
-                    with patch("app.services.payment.get_session", return_value=mock_session):
+                with patch(
+                    "app.services.account.get_session", return_value=mock_session
+                ):
+                    with patch(
+                        "app.services.payment.get_session", return_value=mock_session
+                    ):
                         yield mock_session
 
 
@@ -43,16 +49,20 @@ def payment_repo():
 @pytest.fixture
 def jwt_provider():
     provider = MagicMock(spec=JWTProvider)
+
     provider.encode.return_value = "mock-token"
     provider.decode.return_value = {"user_id": 1, "is_admin": False}
+
     return provider
 
 
 @pytest.fixture
 def password_provider():
     provider = MagicMock(spec=PasswordProvider)
+
     provider.hash.return_value = "$2b$12$hashedpassword"
     provider.verify.return_value = True
+
     return provider
 
 
