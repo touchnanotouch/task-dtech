@@ -137,7 +137,9 @@ def seed():
 
     cur = conn.cursor()
     cur.execute("TRUNCATE TABLE payments, accounts, users RESTART IDENTITY CASCADE")
+
     _seed_data(cur)
+
     cur.close()
     conn.close()
 

@@ -32,6 +32,7 @@ def svc(account_repo, payment_repo):
     return WebhookService(account_repo, payment_repo, SECRET)
 
 
+@pytest.mark.asyncio
 class TestProcessPayment:
     async def test_success(self, mock_get_session, svc, account_repo, payment_repo):
         sig = webhook_signature(TX_ID, 1, 1, AMOUNT, SECRET)

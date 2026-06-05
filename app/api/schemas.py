@@ -1,7 +1,7 @@
 from decimal import Decimal
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class LoginRequest(BaseModel):
@@ -48,3 +48,11 @@ class WebhookPayload(BaseModel):
     user_id: int
     amount: Decimal
     signature: str
+
+    @field_validator("amount")
+    @classmethod
+    def amount_must_be_positive(cls, v: Decimal) -> Decimal:
+        if v <= 0:
+            raise ValueError("Amount must be positive")
+
+        return v

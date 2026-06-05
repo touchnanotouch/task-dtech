@@ -4,7 +4,7 @@ from tests.helpers import webhook_signature
 
 
 class TestWebhook:
-    def test_success(self, test_client):
+    def test_success(self, test_client, seed):
         sig = webhook_signature("tx-1", 99, 1, Decimal("250.00"))
 
         _, resp = test_client.post(
@@ -25,7 +25,7 @@ class TestWebhook:
         assert body["status"] == "success"
         assert isinstance(body["payment_id"], int)
 
-    def test_creates_account_when_not_found(self, test_client):
+    def test_creates_account_when_not_found(self, test_client, seed):
         sig = webhook_signature("tx-new-acc", 500, 1, Decimal("100.00"))
 
         _, resp = test_client.post(
@@ -42,7 +42,7 @@ class TestWebhook:
         assert resp.status == 200
         assert resp.json["status"] == "success"
 
-    def test_idempotent_duplicate_transaction(self, test_client):
+    def test_idempotent_duplicate_transaction(self, test_client, seed):
         sig = webhook_signature("tx-dup-2", 99, 1, Decimal("50.00"))
 
         payload = {

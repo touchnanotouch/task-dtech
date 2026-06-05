@@ -5,6 +5,7 @@ from app.core import InvalidCredentials, InvalidToken
 from app.services import AuthService
 
 
+@pytest.mark.asyncio
 class TestLogin:
     async def test_success(
         self, mock_get_session, user_repo, jwt_provider, password_provider, make_user
@@ -49,6 +50,7 @@ class TestLogin:
             await svc.login("test@test.com", "wrong-password")
 
 
+@pytest.mark.asyncio
 class TestGetCurrentUser:
     async def test_valid_token(
         self, mock_get_session, user_repo, jwt_provider, password_provider, make_user

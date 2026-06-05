@@ -12,6 +12,7 @@ from app.core import (
 from app.services import AdminService
 
 
+@pytest.mark.asyncio
 class TestCreateUser:
     async def test_success(
         self, mock_get_session, user_repo, account_repo, password_provider, make_user
@@ -49,6 +50,7 @@ class TestCreateUser:
             )
 
 
+@pytest.mark.asyncio
 class TestUpdateUser:
     async def test_update_email(
         self, mock_get_session, user_repo, account_repo, password_provider, make_user
@@ -88,6 +90,7 @@ class TestUpdateUser:
             await svc.update_user(1, email="taken@test.com")
 
 
+@pytest.mark.asyncio
 class TestDeleteUser:
     async def test_success(
         self, mock_get_session, user_repo, account_repo, password_provider, make_user
@@ -125,6 +128,7 @@ class TestDeleteUser:
             await svc.delete_user(1)
 
 
+@pytest.mark.asyncio
 class TestGetUser:
     async def test_found(
         self, mock_get_session, user_repo, account_repo, password_provider, make_user
@@ -153,6 +157,7 @@ class TestGetUser:
             await svc.get_user(999)
 
 
+@pytest.mark.asyncio
 class TestListUsers:
     async def test_paginated(
         self, mock_get_session, user_repo, account_repo, password_provider, make_user
@@ -184,6 +189,7 @@ class TestListUsers:
         assert result["pagination"]["total"] == 0
 
 
+@pytest.mark.asyncio
 class TestGetUserAccounts:
     async def test_found(
         self, mock_get_session, user_repo, account_repo, password_provider, make_user

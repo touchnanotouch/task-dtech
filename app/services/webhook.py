@@ -97,7 +97,6 @@ class WebhookService:
             )
 
             await self._account_repo.increase_balance(session, account.id, amount)
-            await self._account_repo.expire(session, account.id)
 
             await session.commit()
         except IntegrityError:
