@@ -3,7 +3,7 @@ from decimal import Decimal
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.account import Account
+from app.models import Account
 
 
 class AccountRepo:

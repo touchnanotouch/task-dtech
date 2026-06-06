@@ -1,7 +1,7 @@
 import jwt as pyjwt
 
 from app.core import get_session, InvalidCredentials, InvalidToken
-from app.models.user import User
+from app.models import User
 from app.repositories import UserRepo
 from app.security import JWTProvider, PasswordProvider
 
